@@ -94,14 +94,16 @@ details summary{cursor:pointer;font-weight:800;min-height:32px}
 <section class="sheet" id="sheet" aria-live="polite"><div class="in"><div class="grab"></div><button class="close" id="closeS">Fermer</button><div id="res"></div></div></section>
 
 <section class="sheet" id="settings"><div class="in"><div class="grab"></div><button class="close" id="closeG">Fermer</button>
-  <h2>Réglages WAINK IA</h2>
+  <h2>Ta clé WAINK IA</h2>
   <p class="note" id="aiState"></p>
-  <label for="key">Clé API Gemini perso (facultatif)</label>
+  <label for="key">Ta clé API Gemini</label>
   <input id="key" type="password" autocomplete="off" placeholder="AIza…">
   <label for="model">Modèle</label>
   <input id="model" autocomplete="off" value="gemini-flash-latest">
   <button class="btn" id="saveG">Enregistrer</button>
-  <p class="note">Inutile si ton coffre-fort est branché. Sinon, crée une clé sur aistudio.google.com/apikey : elle reste seulement sur ce téléphone.</p>
+  <p class="note">WAINK IA a besoin de <b>ta propre clé Gemini</b> (gratuite). Elle reste seulement sur ce téléphone : personne d'autre ne la voit.</p>
+  <div class="links"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Créer ma clé gratuite <span>↗</span></a></div>
+  <p class="note">Connecte-toi avec Google, appuie sur « Create API key », copie la clé et colle-la au-dessus. Sans clé, le mode GTA marche quand même, avec des voitures au hasard.</p>
 </div></section>
 
 <script>
@@ -291,6 +293,7 @@ function vinCheck(e){
   o.innerHTML=`<span class="pill g">Format valide</span> ${MAKERS[v.slice(0,3)]||'constructeur inconnu'} · fabriquée en ${WMI[v[0]]||'pays inconnu'} · année modèle ${ans}. Compare avec la carte grise.`;
 }
 aiInfo();
+setTimeout(()=>{if(!hasAI()){$('#key').value='';aiInfo();$('#settings').classList.add('on')}},1500);
 }
 </script>
 </body>
