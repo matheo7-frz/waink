@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,9 +14,9 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
-      - name: Clé Gemini (secret GEMINI_API_KEY)
-        env: { KEY: '${{ secrets.GEMINI_API_KEY }}' }
-        run: if [ -n "$KEY" ]; then sed -i "s#__GEMINI_KEY__#$KEY#" app/src/main/assets/index.html; fi
+      - name: Adresse du coffre-fort (variable WAINK_SERVER, pas de clé ici)
+        env: { SRV: '${{ vars.WAINK_SERVER }}' }
+        run: if [ -n "$SRV" ]; then sed -i "s#__WAINK_SERVER__#$SRV#" app/src/main/assets/index.html; fi
       - name: Signature de math_0235 (secrets KEYSTORE_BASE64 + KEYSTORE_PASSWORD)
         env:
           KS: '${{ secrets.KEYSTORE_BASE64 }}'
@@ -30,5 +30,6 @@ jobs:
           echo "CERT_SHA256=$H" >> "$GITHUB_ENV"
       - run: gradle assembleRelease
       - run: cp app/build/outputs/apk/release/app-release.apk WAINK.apk && rm -f "$RUNNER_TEMP/waink.jks"
-      - uses: actions/upload-artifact@v4
-        with: { name: WAINK-apk, path: WAINK.apk, retention-days: 7 }
+      - name: Publier l'APK (lien direct)
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: gh release create "v1.${{ github.run_number }}" WAINK.apk --title "WAINK v1.${{ github.run_number }}" --notes "WAINK — fait par math_0235" --latest

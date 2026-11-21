@@ -96,12 +96,12 @@ details summary{cursor:pointer;font-weight:800;min-height:32px}
 <section class="sheet" id="settings"><div class="in"><div class="grab"></div><button class="close" id="closeG">Fermer</button>
   <h2>Réglages WAINK IA</h2>
   <p class="note" id="aiState"></p>
-  <label for="key">Clé API Gemini (gratuite)</label>
+  <label for="key">Clé API Gemini perso (facultatif)</label>
   <input id="key" type="password" autocomplete="off" placeholder="AIza…">
   <label for="model">Modèle</label>
   <input id="model" autocomplete="off" value="gemini-flash-latest">
   <button class="btn" id="saveG">Enregistrer</button>
-  <p class="note">Crée ta clé gratuite sur aistudio.google.com/apikey, puis colle-la ici. Elle reste seulement sur ce téléphone.</p>
+  <p class="note">Inutile si ton coffre-fort est branché. Sinon, crée une clé sur aistudio.google.com/apikey : elle reste seulement sur ce téléphone.</p>
 </div></section>
 
 <script>
@@ -112,7 +112,8 @@ const pick=a=>a[rnd(0,a.length-1)];
 const fmt=n=>Math.round(n).toLocaleString('fr-BE');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const BUILD_KEY='__GEMINI_KEY__';
+const SERVER='__WAINK_SERVER__';
+const hasServer=()=>!SERVER.startsWith('__');
 let mode='gta',target='car',car=null,sample=null,stream=null;
 
 /* ---------- caméra ---------- */
@@ -144,11 +145,17 @@ function unfreeze(){still.classList.add('hide')}
 if(window.claude&&window.claude.use){
   window.claude.use('sample').then(async s=>{if(!s)return;try{const l=await s.limits();if(l&&l.images){sample=s;aiInfo()}}catch(e){}}).catch(()=>{});
 }
-const geminiKey=()=>store.get('nox_key','')||(BUILD_KEY.startsWith('__')?'':BUILD_KEY);
-const hasAI=()=>!!sample||!!geminiKey();
-function aiInfo(){$('#aiState').textContent=sample?"WAINK IA active (version web, aucune clé nécessaire).":geminiKey()?"WAINK IA active.":"Pas d'IA : ajoute une clé Gemini pour que le scan reconnaisse tout seul les voitures."}
+const geminiKey=()=>store.get('nox_key','');
+const hasAI=()=>!!sample||hasServer()||!!geminiKey();
+function aiInfo(){$('#aiState').textContent=hasServer()&&!sample?"WAINK IA active via ton coffre-fort sécurisé : aucune clé sur le téléphone.":sample?"WAINK IA active (version web, aucune clé nécessaire).":geminiKey()?"WAINK IA active.":"Pas d'IA : ajoute une clé Gemini pour que le scan reconnaisse tout seul les voitures."}
 const b64=blob=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(String(f.result).split(',')[1]);f.readAsDataURL(blob)});
-async function ai(prompt,blob){
+async function ai(kind,blob,x){
+  if(!sample&&hasServer()){
+    const body={type:kind};if(blob)body.image=await b64(blob);if(x){body.car=x.car;body.year=x.year;body.km=x.km}
+    const r=await fetch(SERVER.replace(/\/$/,'')+'/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.status===429)throw{code:'rate_limited'};if(!r.ok)throw{code:'http',message:r.status};return r.json();
+  }
+  const prompt=kind==='car'?CAR_PROMPT:kind==='km'?KM_PROMPT:priceP(x.car,x.year,x.km);
   if(sample)return sample.json(prompt,blob?{images:[blob],modelTier:'default'}:{modelTier:'quick'});
   const key=geminiKey();if(!key)throw{code:'no_ai'};
   const parts=[{text:prompt}];if(blob)parts.push({inline_data:{mime_type:'image/jpeg',data:await b64(blob)}});
@@ -165,7 +172,7 @@ Réponds UNIQUEMENT en JSON, en français :
 L'année se déduit du design (phase, restylage). prix_occasion en euros pour cette année probable avec un kilométrage moyen. Si ce n'est pas une voiture, "voiture":false et explique dans "remarque".`;
 const KM_PROMPT=`Lis le compteur kilométrique (odomètre total, pas le trip) sur cette photo de tableau de bord.
 Réponds UNIQUEMENT en JSON : {"lisible":bool,"km":int,"unite":"km"|"miles","remarque":str}`;
-const priceP=(c,y,km)=>`Voiture : ${c.marque} ${c.modele} ${c.generation||''}, année ${y}, ${km} km, marché belge actuel.
+const priceP=(c,y,km)=>`Voiture : ${c}, année ${y}, ${km} km, marché belge actuel.
 Réponds UNIQUEMENT en JSON : {"prix_min":int,"prix_max":int,"commentaire":str} (prix en euros, occasion entre particuliers).`;
 
 /* ---------- interface ---------- */
@@ -191,7 +198,7 @@ $('#shoot').addEventListener('click',async()=>{
     if(target==='dash'){await readKm(blob)}
     else{
       km=null;year=null;
-      car=hasAI()?await ai(CAR_PROMPT,blob):null;
+      car=hasAI()?await ai('car',blob):null;
       await new Promise(r=>setTimeout(r,Math.max(0,1600-(Date.now()-t0))));
       if(car&&car.voiture===false){openSheet(`<div class="big">Pas de voiture</div><p class="note">${esc(car.remarque||'Aucune voiture sur la photo.')}</p>`);car=null}
       else mode==='gta'?showGTA():showReal();
@@ -257,7 +264,7 @@ function showReal(){
   $('#vin').addEventListener('input',vinCheck);
 }
 async function readKm(blob){
-  const r=await ai(KM_PROMPT,blob);setTarget('car');
+  const r=await ai('km',blob);setTarget('car');
   if(!r||!r.lisible||!r.km){openSheet(`<div class="big">Compteur illisible</div><p class="note">${esc(r&&r.remarque||'Rapproche-toi du compteur, contact mis, et réessaie.')}</p><button class="btn" id="again">Réessayer</button>`);$('#again').addEventListener('click',()=>{closeSheet();setTarget('dash')});return}
   km=r.unite==='miles'?Math.round(r.km*1.609):r.km;
   if(!car){openSheet(`<div class="eyebrow">Compteur</div><div class="big">${fmt(km)} km</div><p class="note">Scanne d'abord la voiture pour avoir son prix.</p>`);return}
@@ -266,7 +273,7 @@ async function readKm(blob){
 async function reprice(){
   if(km)$('#kmv').textContent=fmt(km)+' km';
   $('#pv').textContent='…';
-  try{const p=await ai(priceP(car,year,km||'kilométrage moyen'),null);
+  try{const p=await ai('price',null,{car:`${car.marque} ${car.modele} ${car.generation||''}`.trim(),year,km:km||''});
     $('#pv').textContent=`${fmt(p.prix_min)} – ${fmt(p.prix_max)} €`;$('#pnote').textContent=(p.commentaire||'')+` (${year}${km?', '+fmt(km)+' km':''})`;
   }catch(e){$('#pv').textContent=`≈ ${fmt(car.prix_occasion)} €`;$('#pnote').textContent=errMsg(e)}
 }
