@@ -19,7 +19,14 @@ import android.webkit.WebViewClient;
 import androidx.core.content.FileProvider;
 import androidx.webkit.WebViewAssetLoader;
 
+import android.content.pm.Signature;
+import android.content.pm.SigningInfo;
+import android.os.Build;
+import android.view.Gravity;
+import android.widget.TextView;
+
 import java.io.File;
+import java.security.MessageDigest;
 
 // WAINK — fait par math_0235
 public class MainActivity extends Activity {
@@ -34,6 +41,17 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        if (!signatureOk()) {
+            TextView t = new TextView(this);
+            t.setText("WAINK\n\nCette copie a été modifiée par quelqu'un d'autre.\nElle est bloquée.\n\nInstalle seulement la version officielle de math_0235.");
+            t.setTextColor(0xFFF6F1FF);
+            t.setBackgroundColor(0xFF120B24);
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(48, 48, 48, 48);
+            t.setTextSize(18);
+            setContentView(t);
+            return;
+        }
         getWindow().setStatusBarColor(0xFF000000);
         getWindow().setNavigationBarColor(0xFF000000);
         web = new WebView(this);
@@ -44,6 +62,9 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
+        WebView.setWebContentsDebuggingEnabled(false);
 
         // Sert les fichiers de l'appli en https pour que la caméra en direct soit autorisée
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -121,6 +142,31 @@ public class MainActivity extends Activity {
         web.loadUrl(HOME);
     }
 
+    // Anti-modification : vérifie que l'APK est bien signé par la clé de math_0235
+    private boolean signatureOk() {
+        String expected = BuildConfig.CERT_SHA256;
+        if (expected == null || expected.isEmpty()) return true;
+        try {
+            Signature[] sigs;
+            if (Build.VERSION.SDK_INT >= 28) {
+                SigningInfo info = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES).signingInfo;
+                sigs = info.hasMultipleSigners() ? info.getApkContentsSigners() : info.getSigningCertificateHistory();
+            } else {
+                sigs = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES).signatures;
+            }
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            for (Signature sig : sigs) {
+                byte[] d = md.digest(sig.toByteArray());
+                StringBuilder sb = new StringBuilder();
+                for (byte x : d) sb.append(String.format("%02X", x));
+                if (sb.toString().equalsIgnoreCase(expected)) return true;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    }
+
     @Override
     public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
         super.onRequestPermissionsResult(req, perms, res);
@@ -150,7 +196,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web.canGoBack()) web.goBack();
+        if (web != null && web.canGoBack()) web.goBack();
         else super.onBackPressed();
     }
 }

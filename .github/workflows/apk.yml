@@ -14,10 +14,21 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
-      - name: Clé Gemini (secret GEMINI_API_KEY, optionnel)
+      - name: Clé Gemini (secret GEMINI_API_KEY)
         env: { KEY: '${{ secrets.GEMINI_API_KEY }}' }
         run: if [ -n "$KEY" ]; then sed -i "s#__GEMINI_KEY__#$KEY#" app/src/main/assets/index.html; fi
-      - run: gradle assembleDebug
-      - run: cp app/build/outputs/apk/debug/app-debug.apk WAINK.apk
+      - name: Signature de math_0235 (secrets KEYSTORE_BASE64 + KEYSTORE_PASSWORD)
+        env:
+          KS: '${{ secrets.KEYSTORE_BASE64 }}'
+          PW: '${{ secrets.KEYSTORE_PASSWORD }}'
+        run: |
+          if [ -z "$KS" ] || [ -z "$PW" ]; then echo "::error::Ajoute les secrets KEYSTORE_BASE64 et KEYSTORE_PASSWORD"; exit 1; fi
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/waink.jks"
+          H=$(keytool -list -v -keystore "$RUNNER_TEMP/waink.jks" -alias waink -storepass "$PW" | grep 'SHA256:' | head -1 | sed 's/.*SHA256: //; s/://g' | tr -d ' \r')
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/waink.jks" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=$PW" >> "$GITHUB_ENV"
+          echo "CERT_SHA256=$H" >> "$GITHUB_ENV"
+      - run: gradle assembleRelease
+      - run: cp app/build/outputs/apk/release/app-release.apk WAINK.apk && rm -f "$RUNNER_TEMP/waink.jks"
       - uses: actions/upload-artifact@v4
-        with: { name: WAINK-apk, path: WAINK.apk }
+        with: { name: WAINK-apk, path: WAINK.apk, retention-days: 7 }
