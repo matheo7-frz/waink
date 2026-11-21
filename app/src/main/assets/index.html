@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WAINK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: téléphone de poche d'un criminel de Leonida, cool et néon, sûr de lui
+   IDEA: le viseur d'une appli de scan, plein écran, comme sortie du jeu
+   PICTURE: le flux caméra lui-même, cadré par un viseur cyan-rose et un laser
+   COLOUR and TYPE: nuit violette #120b24, cyan #5ec8e5, rose #e77fb6 ; Archivo Black + Inter
+   LAYOUT: viseur plein écran, déclencheur en bas, fiche de résultat qui monte du bas */
+:root{color-scheme:dark;--bg:#120b24;--bg2:#1c1336;--card:#231842;--ink:#f6f1ff;--mut:#b4a8d6;--cy:#5ec8e5;--pk:#e77fb6;--ok:#7ee0a8;--bad:#ff6f8a;--line:#3a2c63}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%;margin:0}
+body{background:#000;color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow:hidden}
+.cam{position:fixed;inset:0;background:radial-gradient(120% 60% at 0% 0%,#2a1a55,transparent 60%),radial-gradient(120% 60% at 100% 100%,#4a1840,transparent 60%),var(--bg)}
+.cam video,.cam img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.shade{position:absolute;inset:0;background:linear-gradient(#000a,transparent 22%,transparent 70%,#000c)}
+.top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:14px 16px}
+.top svg.logo{width:40px;height:40px;flex:none;filter:drop-shadow(0 4px 14px #e77fb688)}
+h1{font:400 22px/1 "Archivo Black",Impact,sans-serif;margin:0}
+.sig{font-size:12px;color:var(--mut)}
+.ico{margin-left:auto;width:44px;height:44px;border-radius:50%;border:0;background:#ffffff1c;color:#fff;display:grid;place-items:center;cursor:pointer}
+.ico svg{width:22px;height:22px}
+.finder{position:absolute;left:8%;right:8%;top:22%;bottom:30%;
+ background:linear-gradient(var(--cy),var(--cy)) top left/34px 3px,linear-gradient(var(--cy),var(--cy)) top left/3px 34px,linear-gradient(var(--cy),var(--cy)) top right/34px 3px,linear-gradient(var(--cy),var(--cy)) top right/3px 34px,linear-gradient(var(--pk),var(--pk)) bottom left/34px 3px,linear-gradient(var(--pk),var(--pk)) bottom left/3px 34px,linear-gradient(var(--pk),var(--pk)) bottom right/34px 3px,linear-gradient(var(--pk),var(--pk)) bottom right/3px 34px;background-repeat:no-repeat;transition:inset .3s}
+.finder.dash{left:18%;right:18%;top:30%;bottom:40%}
+.hint{position:absolute;left:0;right:0;top:calc(22% - 36px);text-align:center;font-weight:800;font-size:14px;text-shadow:0 1px 6px #000}
+.laser{position:absolute;left:0;right:0;height:3px;top:0;display:none;background:linear-gradient(90deg,transparent,var(--cy),var(--pk),transparent);box-shadow:0 0 20px var(--pk)}
+.busy .laser{display:block;animation:sweep 1s ease-in-out infinite alternate}
+.busy .finder::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,#5ec8e514 0 2px,transparent 2px 6px)}
+@keyframes sweep{to{top:calc(100% - 3px)}}
+@media(prefers-reduced-motion:reduce){.busy .laser{animation:none;top:50%}}
+.status{position:absolute;left:50%;top:calc(70% + 12px);transform:translateX(-50%);background:#000a;border-radius:99px;padding:6px 14px;font-size:14px;font-weight:600;white-space:nowrap;display:none}
+.busy .status,.status.show{display:block}
+.bottom{position:absolute;left:0;right:0;bottom:0;padding:0 16px 22px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.modes{display:flex;background:#0008;border-radius:99px;padding:4px}
+.modes button{min-height:40px;padding:0 18px;border:0;border-radius:99px;background:none;color:var(--mut);font:800 14px Inter,sans-serif;cursor:pointer}
+.modes button.on{background:linear-gradient(90deg,var(--cy),var(--pk));color:#1a0f30}
+.shoot{width:78px;height:78px;border-radius:50%;border:4px solid #fff;background:radial-gradient(circle,#fff 0 56%,transparent 57%);cursor:pointer;box-shadow:0 0 24px #e77fb688}
+.shoot:disabled{opacity:.4}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--cy);outline-offset:2px}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:86%;overflow-y:auto;background:var(--bg);border-radius:26px 26px 0 0;border-top:1px solid var(--line);padding:10px 16px 28px;transform:translateY(105%);transition:transform .3s;z-index:5}
+.sheet.on{transform:none}
+.sheet .in{max-width:520px;margin:0 auto}
+.grab{width:44px;height:5px;border-radius:9px;background:var(--line);margin:4px auto 10px}
+.close{float:right;min-height:40px;padding:0 14px;border:0;border-radius:99px;background:var(--card);color:var(--ink);font-weight:800;cursor:pointer}
+.eyebrow{color:var(--mut);font-size:14px}
+.big{font:400 30px/1.05 "Archivo Black",Impact,sans-serif;margin:2px 0 6px}
+.price{font:400 34px/1.05 "Archivo Black",Impact,sans-serif;background:linear-gradient(90deg,var(--cy),var(--pk));-webkit-background-clip:text;background-clip:text;color:transparent;margin:6px 0}
+h2{font:400 18px/1.1 "Archivo Black",Impact,sans-serif;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin:12px 0}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 12px;margin:0}
+.kv dt{color:var(--mut)}.kv dd{margin:0;font-weight:800;text-align:right}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:800;white-space:nowrap}
+.g{background:#7ee0a822;color:var(--ok)}.r{background:#ff6f8a22;color:var(--bad)}.y{background:#ffd56b22;color:#ffd56b}
+.stars{color:var(--pk);letter-spacing:2px;font-size:18px}
+.banner{font-size:13px;color:#1a0f30;background:var(--pk);border-radius:12px;padding:8px 12px;font-weight:800;margin-top:12px}
+.note{font-size:13px;color:var(--mut)}
+.btn{width:100%;min-height:52px;border:0;border-radius:16px;font:800 16px Inter,sans-serif;color:#1a0f30;background:linear-gradient(90deg,var(--cy),var(--pk));cursor:pointer;margin-top:10px}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input{width:100%;min-height:48px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font:16px Inter,sans-serif;padding:0 14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 10px}
+.links a{display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:0 14px;border-radius:14px;background:var(--bg2);border:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:600;margin-top:8px}
+a{color:var(--cy)}
+details summary{cursor:pointer;font-weight:800;min-height:32px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="cam" id="cam">
+  <video id="vid" playsinline muted autoplay></video>
+  <img id="still" class="hide" alt="Photo scannée">
+  <div class="shade"></div>
+  <div class="hint" id="hint">Vise une voiture</div>
+  <div class="finder" id="finder"><div class="laser"></div></div>
+  <div class="status" id="status">Analyse…</div>
+  <div class="top">
+    <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5ec8e5"/><stop offset="1" stop-color="#e77fb6"/></linearGradient></defs><circle cx="50" cy="50" r="48" fill="url(#lg)"/><g fill="#fff"><path d="M50 14c6 10 6 18 0 26c-6-8-6-16 0-26z"/><path d="M50 86c-6-10-6-18 0-26c6 8 6 16 0 26z"/><path d="M14 50c10-6 18-6 26 0c-8 6-16 6-26 0z"/><path d="M86 50c-10 6-18 6-26 0c8-6 16-6 26 0z"/></g><circle cx="50" cy="50" r="6" fill="none" stroke="#fff" stroke-width="3"/></svg>
+    <div><h1>WAINK</h1><div class="sig">fait par math_0235</div></div>
+    <button class="ico" id="gear" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </div>
+  <div class="bottom">
+    <div class="modes" role="tablist"><button class="on" data-m="gta">Mode GTA</button><button data-m="real">Mode Réel</button></div>
+    <button class="shoot" id="shoot" aria-label="Scanner"></button>
+  </div>
+</div>
+<input type="file" id="file" accept="image/*" capture="environment" class="hide">
+
+<section class="sheet" id="sheet" aria-live="polite"><div class="in"><div class="grab"></div><button class="close" id="closeS">Fermer</button><div id="res"></div></div></section>
+
+<section class="sheet" id="settings"><div class="in"><div class="grab"></div><button class="close" id="closeG">Fermer</button>
+  <h2>Réglages WAINK IA</h2>
+  <p class="note" id="aiState"></p>
+  <label for="key">Clé API Gemini (gratuite)</label>
+  <input id="key" type="password" autocomplete="off" placeholder="AIza…">
+  <label for="model">Modèle</label>
+  <input id="model" autocomplete="off" value="gemini-flash-latest">
+  <button class="btn" id="saveG">Enregistrer</button>
+  <p class="note">Crée ta clé gratuite sur aistudio.google.com/apikey, puis colle-la ici. Elle reste seulement sur ce téléphone.</p>
+</div></section>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const rnd=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
+const pick=a=>a[rnd(0,a.length-1)];
+const fmt=n=>Math.round(n).toLocaleString('fr-BE');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const BUILD_KEY='__GEMINI_KEY__';
+let mode='gta',target='car',car=null,sample=null,stream=null;
+
+/* ---------- caméra ---------- */
+const vid=$('#vid'),still=$('#still');
+async function startCam(){
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    vid.srcObject=stream;await vid.play();
+  }catch(e){stream=null;$('#hint').textContent='Appuie pour prendre une photo';}
+}
+startCam();
+function grab(){
+  const max=1024;
+  if(stream&&vid.videoWidth){
+    const k=Math.min(1,max/Math.max(vid.videoWidth,vid.videoHeight));
+    const c=document.createElement('canvas');c.width=vid.videoWidth*k;c.height=vid.videoHeight*k;
+    c.getContext('2d').drawImage(vid,0,0,c.width,c.height);
+    return new Promise(r=>c.toBlob(b=>r(b),'image/jpeg',.85));
+  }
+  return new Promise(r=>{const f=$('#file');f.value='';f.onchange=()=>r(f.files[0]?shrink(f.files[0]):null);f.click()});
+}
+function shrink(file){
+  return new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,1024/Math.max(i.width,i.height));const c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);c.toBlob(b=>r(b),'image/jpeg',.85)};i.onerror=()=>r(file);i.src=URL.createObjectURL(file)});
+}
+function freeze(blob){still.src=URL.createObjectURL(blob);still.classList.remove('hide')}
+function unfreeze(){still.classList.add('hide')}
+
+/* ---------- IA : Claude (version web) ou Gemini (APK) ---------- */
+if(window.claude&&window.claude.use){
+  window.claude.use('sample').then(async s=>{if(!s)return;try{const l=await s.limits();if(l&&l.images){sample=s;aiInfo()}}catch(e){}}).catch(()=>{});
+}
+const geminiKey=()=>store.get('nox_key','')||(BUILD_KEY.startsWith('__')?'':BUILD_KEY);
+const hasAI=()=>!!sample||!!geminiKey();
+function aiInfo(){$('#aiState').textContent=sample?"WAINK IA active (version web, aucune clé nécessaire).":geminiKey()?"WAINK IA active.":"Pas d'IA : ajoute une clé Gemini pour que le scan reconnaisse tout seul les voitures."}
+const b64=blob=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(String(f.result).split(',')[1]);f.readAsDataURL(blob)});
+async function ai(prompt,blob){
+  if(sample)return sample.json(prompt,blob?{images:[blob],modelTier:'default'}:{modelTier:'quick'});
+  const key=geminiKey();if(!key)throw{code:'no_ai'};
+  const parts=[{text:prompt}];if(blob)parts.push({inline_data:{mime_type:'image/jpeg',data:await b64(blob)}});
+  const m=store.get('nox_model','gemini-flash-latest')||'gemini-flash-latest';
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts}],generationConfig:{responseMimeType:'application/json',temperature:.2}})});
+  if(r.status===429)throw{code:'rate_limited'};
+  if(!r.ok)throw{code:'http',message:r.status};
+  const j=await r.json();const t=j.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+  return JSON.parse(t.replace(/^```json|```$/g,'').trim());
+}
+const CAR_PROMPT=`Tu es un expert automobile du marché belge. Regarde la voiture principale sur la photo.
+Réponds UNIQUEMENT en JSON, en français :
+{"voiture":bool,"marque":str,"modele":str,"generation":str,"annee_min":int,"annee_max":int,"annee_probable":int,"carrosserie":str,"moteurs":str,"puissance":str,"couleur":str,"prix_neuf":int,"prix_occasion":int,"confiance":"faible"|"moyenne"|"élevée","remarque":str}
+L'année se déduit du design (phase, restylage). prix_occasion en euros pour cette année probable avec un kilométrage moyen. Si ce n'est pas une voiture, "voiture":false et explique dans "remarque".`;
+const KM_PROMPT=`Lis le compteur kilométrique (odomètre total, pas le trip) sur cette photo de tableau de bord.
+Réponds UNIQUEMENT en JSON : {"lisible":bool,"km":int,"unite":"km"|"miles","remarque":str}`;
+const priceP=(c,y,km)=>`Voiture : ${c.marque} ${c.modele} ${c.generation||''}, année ${y}, ${km} km, marché belge actuel.
+Réponds UNIQUEMENT en JSON : {"prix_min":int,"prix_max":int,"commentaire":str} (prix en euros, occasion entre particuliers).`;
+
+/* ---------- interface ---------- */
+document.querySelectorAll('.modes button').forEach(b=>b.addEventListener('click',()=>{
+  mode=b.dataset.m;document.querySelectorAll('.modes button').forEach(x=>x.classList.toggle('on',x===b));setTarget('car');
+}));
+function setTarget(t){target=t;$('#finder').classList.toggle('dash',t==='dash');$('#hint').textContent=t==='dash'?'Vise le compteur kilométrique':(stream?'Vise une voiture':'Appuie pour prendre une photo')}
+function openSheet(html){$('#res').innerHTML=html;$('#sheet').classList.add('on')}
+function closeSheet(){$('#sheet').classList.remove('on');unfreeze()}
+$('#closeS').addEventListener('click',closeSheet);
+$('#gear').addEventListener('click',()=>{$('#key').value=store.get('nox_key','');$('#model').value=store.get('nox_model','gemini-flash-latest');aiInfo();$('#settings').classList.add('on')});
+$('#closeG').addEventListener('click',()=>$('#settings').classList.remove('on'));
+$('#saveG').addEventListener('click',()=>{store.set('nox_key',$('#key').value.trim());store.set('nox_model',$('#model').value.trim()||'gemini-flash-latest');aiInfo();$('#settings').classList.remove('on')});
+function busy(on,msg){$('#cam').classList.toggle('busy',on);$('#shoot').disabled=on;if(msg)$('#status').textContent=msg}
+const errMsg=e=>e&&e.code==='no_ai'?"Pas d'IA configurée : ouvre les réglages (roue dentée) et colle ta clé Gemini gratuite.":e&&e.code==='rate_limited'?'Trop de scans d\'un coup, attends une minute.':"Le scan n'a pas marché. Vérifie ta connexion et réessaie.";
+
+$('#shoot').addEventListener('click',async()=>{
+  closeSheet();
+  const blob=await grab();if(!blob)return;
+  freeze(blob);busy(true,target==='dash'?'Lecture du compteur…':'Analyse du véhicule…');
+  const t0=Date.now();
+  try{
+    if(target==='dash'){await readKm(blob)}
+    else{
+      km=null;year=null;
+      car=hasAI()?await ai(CAR_PROMPT,blob):null;
+      await new Promise(r=>setTimeout(r,Math.max(0,1600-(Date.now()-t0))));
+      if(car&&car.voiture===false){openSheet(`<div class="big">Pas de voiture</div><p class="note">${esc(car.remarque||'Aucune voiture sur la photo.')}</p>`);car=null}
+      else mode==='gta'?showGTA():showReal();
+    }
+  }catch(e){
+    if(mode==='gta'&&target==='car'){car=null;showGTA()}
+    else openSheet(`<div class="big">Oups</div><p class="note">${esc(errMsg(e))}</p>`);
+  }finally{busy(false)}
+});
+
+/* MODE GTA : vrai modèle + vrai prix si IA, sécurité simulée */
+function showGTA(){
+  const locked=Math.random()<.7,alarm=pick(['Aucune','Standard','Avancée']),tracker=Math.random()<.4;
+  const val=car?car.prix_occasion:rnd(4,180)*500;
+  const tier=Math.min(5,Math.max(1,Math.round(Math.log10(Math.max(val,2000))*2-6)));
+  const reg=Math.round(val*(.1+Math.random()*.15)/50)*50;
+  const hist=store.get('nox_hist',[]);hist.unshift({n:car?`${car.marque} ${car.modele}`:'Véhicule',v:val});store.set('nox_hist',hist.slice(0,20));
+  openSheet(`<div class="eyebrow">${car?esc(car.marque)+' · '+esc(car.annee_probable||''):'Véhicule détecté'}</div>
+  <div class="big">${car?esc(car.modele):pick(['Coupé sport','Berline','SUV','Citadine','Muscle car'])}</div>
+  <div class="stars" aria-label="Niveau ${tier} sur 5">${'★'.repeat(tier)}${'☆'.repeat(5-tier)}</div>
+  <div class="price">$${fmt(val)}</div>
+  <dl class="kv card">
+    <dt>Verrouillage</dt><dd><span class="pill ${locked?'r':'g'}">${locked?'Verrouillée':'Ouverte'}</span></dd>
+    <dt>Alarme</dt><dd><span class="pill ${alarm==='Aucune'?'g':alarm==='Standard'?'y':'r'}">${alarm}</span></dd>
+    <dt>Traceur</dt><dd><span class="pill ${tracker?'r':'g'}">${tracker?'Oui':'Non'}</span></dd>
+    <dt>Immatriculation</dt><dd>$${fmt(reg)}</dd>
+  </dl>
+  <div class="banner">Verrouillage, alarme, traceur et immatriculation sont simulés au hasard, pour le fun.${car?' Le modèle et le prix viennent de l\'IA.':''}</div>
+  ${car?'':`<p class="note">${hasAI()?'':"Ajoute une clé Gemini dans les réglages pour que le vrai modèle et le vrai prix s'affichent."}</p>`}`);
+}
+
+/* MODE RÉEL */
+let km=null,year=null;
+function showReal(){
+  if(!car){openSheet(`<div class="big">Pas d'IA</div><p class="note">${esc(errMsg({code:'no_ai'}))}</p>`);return}
+  year=year||car.annee_probable||car.annee_max;
+  openSheet(`<div class="eyebrow">${esc(car.marque)} · ${esc(car.generation||'')}</div>
+  <div class="big">${esc(car.modele)}</div>
+  <div class="note">Année estimée ${esc(car.annee_probable)} (entre ${esc(car.annee_min)} et ${esc(car.annee_max)}) · confiance <span class="pill ${car.confiance==='élevée'?'g':car.confiance==='moyenne'?'y':'r'}">${esc(car.confiance)}</span></div>
+  <div class="price" id="pv">≈ ${fmt(car.prix_occasion)} €</div>
+  <div class="note" id="pnote">Prix pour un kilométrage moyen. Scanne le compteur pour l'affiner.</div>
+  <button class="btn" id="goDash">Scanner le compteur kilométrique</button>
+  <div class="card"><dl class="kv">
+    <dt>Carrosserie</dt><dd>${esc(car.carrosserie||'–')}</dd>
+    <dt>Puissance</dt><dd>${esc(car.puissance||'–')}</dd>
+    <dt>Couleur</dt><dd>${esc(car.couleur||'–')}</dd>
+    <dt>Prix neuf</dt><dd>${car.prix_neuf?fmt(car.prix_neuf)+' €':'–'}</dd>
+    <dt>Kilométrage</dt><dd id="kmv">${km?fmt(km)+' km':'à scanner'}</dd>
+  </dl><p class="note" style="margin-bottom:0">Moteurs : ${esc(car.moteurs||'–')}. ${esc(car.remarque||'')}</p></div>
+  <details class="card"><summary>Corriger l'année ou les kilomètres</summary>
+    <div class="grid2"><div><label for="yr">Année</label><input id="yr" type="number" inputmode="numeric" value="${esc(year)}"></div>
+    <div><label for="kmi">Kilomètres</label><input id="kmi" type="number" inputmode="numeric" step="1000" placeholder="ex. 85000"></div></div>
+    <button class="btn ghost" id="reprice">Recalculer le prix</button></details>
+  <div class="card"><h2>Vérifier si elle est volée</h2>
+    <p class="note">Le numéro de châssis (VIN, 17 caractères) est sur la carte grise, en bas du pare-brise côté conducteur ou sur le montant de porte.</p>
+    <label for="vin">Numéro de châssis</label><input id="vin" maxlength="17" autocapitalize="characters" autocomplete="off" placeholder="WVWZZZ1KZ9W000000">
+    <div id="vinOut" class="note" style="margin-top:8px"></div>
+    <div class="links"><a href="https://www.police.be/5998/fr/node/480" target="_blank" rel="noopener">Conseils police.be avant d'acheter <span>↗</span></a><a href="https://www.checkdoc.be" target="_blank" rel="noopener">Contrôler la carte grise sur checkdoc.be <span>↗</span></a></div>
+    <p class="note">En Belgique, il n'existe pas de base publique des voitures volées. En cas de doute, la police conseille de demander à la DIV de vérifier le numéro de châssis.</p></div>
+  <p class="note">Prix et année estimés par l'IA : compare avec les annonces avant d'acheter ou de vendre.</p>`);
+  $('#goDash').addEventListener('click',()=>{$('#sheet').classList.remove('on');unfreeze();setTarget('dash')});
+  $('#reprice').addEventListener('click',()=>{year=+$('#yr').value||year;const k=+$('#kmi').value;if(k>0)km=k;reprice()});
+  $('#vin').addEventListener('input',vinCheck);
+}
+async function readKm(blob){
+  const r=await ai(KM_PROMPT,blob);setTarget('car');
+  if(!r||!r.lisible||!r.km){openSheet(`<div class="big">Compteur illisible</div><p class="note">${esc(r&&r.remarque||'Rapproche-toi du compteur, contact mis, et réessaie.')}</p><button class="btn" id="again">Réessayer</button>`);$('#again').addEventListener('click',()=>{closeSheet();setTarget('dash')});return}
+  km=r.unite==='miles'?Math.round(r.km*1.609):r.km;
+  if(!car){openSheet(`<div class="eyebrow">Compteur</div><div class="big">${fmt(km)} km</div><p class="note">Scanne d'abord la voiture pour avoir son prix.</p>`);return}
+  showReal();await reprice();
+}
+async function reprice(){
+  if(km)$('#kmv').textContent=fmt(km)+' km';
+  $('#pv').textContent='…';
+  try{const p=await ai(priceP(car,year,km||'kilométrage moyen'),null);
+    $('#pv').textContent=`${fmt(p.prix_min)} – ${fmt(p.prix_max)} €`;$('#pnote').textContent=(p.commentaire||'')+` (${year}${km?', '+fmt(km)+' km':''})`;
+  }catch(e){$('#pv').textContent=`≈ ${fmt(car.prix_occasion)} €`;$('#pnote').textContent=errMsg(e)}
+}
+
+/* VIN */
+const WMI={W:'Allemagne',V:'France/Espagne',Z:'Italie',S:'Royaume-Uni',T:'Suisse/Tchéquie',Y:'Suède/Belgique',J:'Japon',K:'Corée',L:'Chine',1:'États-Unis',4:'États-Unis',5:'États-Unis',2:'Canada',3:'Mexique',9:'Brésil'};
+const MAKERS={WVW:'Volkswagen',WAU:'Audi',WBA:'BMW',WDD:'Mercedes-Benz',WP0:'Porsche',VF1:'Renault',VF3:'Peugeot',VF7:'Citroën',UU1:'Dacia',ZFA:'Fiat',ZAR:'Alfa Romeo',SAJ:'Jaguar',SAL:'Land Rover',JTD:'Toyota',JMZ:'Mazda',KNA:'Kia',KMH:'Hyundai',SJN:'Nissan',TMB:'Škoda',VSS:'Seat',YV1:'Volvo',W0L:'Opel',WF0:'Ford',ZHW:'Lamborghini',ZFF:'Ferrari','5YJ':'Tesla',LRW:'Tesla',XP7:'Tesla'};
+const YR='ABCDEFGHJKLMNPRSTVWXY123456789';
+function vinCheck(e){
+  const v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');e.target.value=v;const o=$('#vinOut');
+  if(!v){o.textContent='';return}
+  if(/[IOQ]/.test(v)){o.innerHTML='<span class="pill r">Invalide</span> Un VIN ne contient jamais I, O ou Q.';return}
+  if(v.length<17){o.textContent=`${v.length}/17 caractères`;return}
+  const yi=YR.indexOf(v[9]);const ans=yi<0?'?':(2010+yi<=2026?`${1980+yi} ou ${2010+yi}`:`${1980+yi}`);
+  o.innerHTML=`<span class="pill g">Format valide</span> ${MAKERS[v.slice(0,3)]||'constructeur inconnu'} · fabriquée en ${WMI[v[0]]||'pays inconnu'} · année modèle ${ans}. Compare avec la carte grise.`;
+}
+aiInfo();
+}
+</script>
+</body>
+</html>
